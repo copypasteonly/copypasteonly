@@ -14,7 +14,7 @@
  
  🌱 I’m currently learning **Rust, Machine Learning & Cybersecurity**
 
-⚡ Fun fact **Game of Thrones Night's Watch cloaks are made from Ikea rugs**
+⚡ Fun fact **Nujabes and J Dilla share the same birthday.**
 
  </div>
  
@@ -35,7 +35,7 @@
 <h2 align="center">🧰 Languages and Tools</h2>
 <br/>
 <div align="center">
-    <img src="https://skillicons.dev/icons?i=linux,neovim,github,git,bash,zsh,nix" />
+    <img src="https://skillicons.dev/icons?i=linux,neovim,github,git,bash,nix" />
     <img src="https://skillicons.dev/icons?i=c,rust,lua,java,js,ts,py,cpp" /><br>
 </div>
 

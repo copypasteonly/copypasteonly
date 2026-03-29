@@ -1,5 +1,6 @@
 import datetime
 import tomllib
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from dateutil import relativedelta
 import requests
@@ -107,10 +108,13 @@ def graph_repos_stars(count_type, owner_affiliation, cursor=None, add_loc=0, del
     variables = {'owner_affiliation': owner_affiliation, 'login': USER_NAME, 'cursor': cursor}
     request = simple_request(graph_repos_stars.__name__, query, variables)
     if request.status_code == 200:
+        repos_data = request.json()['data']['user']['repositories']
         if count_type == 'repos':
-            return request.json()['data']['user']['repositories']['totalCount']
+            return repos_data['totalCount']
         elif count_type == 'stars':
-            return stars_counter(request.json()['data']['user']['repositories']['edges'])
+            return stars_counter(repos_data['edges'])
+        elif count_type == 'both':
+            return repos_data['totalCount'], stars_counter(repos_data['edges'])
 
 
 def recursive_loc(owner, repo_name, data, cache_comment, addition_total=0, deletion_total=0, my_commits=0, cursor=None):
@@ -191,7 +195,7 @@ def loc_query(owner_affiliation, comment_size=0, force_cache=False, cursor=None,
     query = '''
     query ($owner_affiliation: [RepositoryAffiliation], $login: String!, $cursor: String) {
         user(login: $login) {
-            repositories(first: 60, after: $cursor, ownerAffiliations: $owner_affiliation) {
+            repositories(first: 100, after: $cursor, ownerAffiliations: $owner_affiliation) {
             edges {
                 node {
                     ... on Repository {
@@ -435,27 +439,41 @@ if __name__ == '__main__':
     birthday = datetime.datetime(user_cfg['birth_year'], user_cfg['birth_month'], user_cfg['birth_day'])
 
     print('Calculation times:')
+    # Sequential: user_getter must complete first (sets OWNER_ID for loc_query)
     user_data, user_time = perf_counter(user_getter, USER_NAME)
     OWNER_ID, acc_date = user_data
     formatter('account data', user_time)
     age_data, age_time = perf_counter(daily_readme, birthday)
     formatter('age calculation', age_time)
+
+    # Sequential: loc_query needs OWNER_ID and must finish before commit_counter (which reads the cache)
     total_loc, loc_time = perf_counter(loc_query, ['OWNER', 'COLLABORATOR', 'ORGANIZATION_MEMBER'], comment_size)
     formatter('LOC (cached)', loc_time) if total_loc[-1] else formatter('LOC (no cache)', loc_time)
-    commit_data, commit_time = perf_counter(commit_counter, comment_size)
-    star_data, star_time = perf_counter(graph_repos_stars, 'stars', ['OWNER'])
-    repo_data, repo_time = perf_counter(graph_repos_stars, 'repos', ['OWNER'])
-    contrib_data, contrib_time = perf_counter(graph_repos_stars, 'repos', ['OWNER', 'COLLABORATOR', 'ORGANIZATION_MEMBER'])
-    follower_data, follower_time = perf_counter(follower_getter, USER_NAME)
+
+    # Parallel: these 4 calls are independent of each other
+    parallel_start = time.perf_counter()
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        future_commits = executor.submit(commit_counter, comment_size)
+        future_repos_stars = executor.submit(graph_repos_stars, 'both', ['OWNER'])
+        future_contrib = executor.submit(graph_repos_stars, 'repos', ['OWNER', 'COLLABORATOR', 'ORGANIZATION_MEMBER'])
+        future_followers = executor.submit(follower_getter, USER_NAME)
+
+        commit_data = future_commits.result()
+        repo_data, star_data = future_repos_stars.result()
+        contrib_data = future_contrib.result()
+        follower_data = future_followers.result()
+    parallel_time = time.perf_counter() - parallel_start
+    formatter('parallel stats', parallel_time)
 
     for index in range(len(total_loc)-1): total_loc[index] = '{:,}'.format(total_loc[index])
 
     for output_file in (config['output']['dark'], config['output']['light']):
         svg_overwrite(output_file, age_data, commit_data, star_data, repo_data, contrib_data, follower_data, total_loc[:-1])
 
-    print('\033[F\033[F\033[F\033[F\033[F\033[F\033[F\033[F',
-        '{:<21}'.format('Total function time:'), '{:>11}'.format('%.4f' % (user_time + age_time + loc_time + commit_time + star_time + repo_time + contrib_time)),
-        ' s \033[E\033[E\033[E\033[E\033[E\033[E\033[E\033[E', sep='')
+    total_time = user_time + age_time + loc_time + parallel_time
+    print('\033[F\033[F\033[F\033[F\033[F\033[F',
+        '{:<21}'.format('Total function time:'), '{:>11}'.format('%.4f' % total_time),
+        ' s \033[E\033[E\033[E\033[E\033[E\033[E', sep='')
 
     print('Total GitHub GraphQL API calls:', '{:>3}'.format(sum(QUERY_COUNT.values())))
     for funct_name, count in QUERY_COUNT.items(): print('{:<28}'.format('   ' + funct_name + ':'), '{:>6}'.format(count))

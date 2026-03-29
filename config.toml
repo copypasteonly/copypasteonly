@@ -20,7 +20,7 @@ IDE = "GNU Emacs"
 
 [profile.Languages]
 Programming = "Python, TypeScript, C++, Go, Rust"
-Computer = "HTML, CSS, JSON, LaTeX, YAML"
+Computer = "HTML, CSS, JSON, LaTeX, YAML, TOML"
 Real = "English, Filipino, Bisaya"
 
 [profile.Hobbies]

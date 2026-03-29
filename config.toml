@@ -1,0 +1,82 @@
+# DevReadme Configuration
+# Edit the values below to customize your GitHub profile README
+
+[user]
+username = "copypasteonly"
+birth_year = 2003
+birth_month = 9
+birth_day = 17
+
+# ===== Profile Section =====
+# Plain string values render as simple key: value lines
+# Nested tables render with dotted-key display (e.g. Languages.Programming: ...)
+# "auto" for Uptime triggers auto-calculation from birth date
+[profile]
+OS = "Linux, FreeBSD"
+Uptime = "auto"
+Host = "FocusBear"
+Kernel = "Backend Developer"
+IDE = "GNU Emacs"
+
+[profile.Languages]
+Programming = "Python, TypeScript, C++, Go, Rust"
+Computer = "HTML, CSS, JSON, LaTeX, YAML"
+Real = "English, Filipino, Bisaya"
+
+[profile.Hobbies]
+Software = "WoW, Dota 2, Rimworld"
+Hardware = "Cars, Mechanical Stuff"
+
+# ===== Contact Section =====
+# Array values expand to multiple lines with the same display key
+# Dotted keys in quotes (e.g. "Email.Personal") display with dot notation
+[contact]
+"Email.Personal" = ["denzeldadang@pm.me"]
+"Email.Work" = "denzeldadang@protonmail.com"
+
+
+
+# ===== ASCII Art =====
+# Separate files per theme (dark/light)
+[ascii_art]
+dark = "ascii_art_dark.txt"
+light = "ascii_art_light.txt"
+
+# ===== Output Files =====
+[output]
+dark = "dark_mode.svg"
+light = "light_mode.svg"
+
+# ===== Color Schemes =====
+[colors.dark]
+background = "#161b22"
+text = "#c9d1d9"
+key = "#ffa657"
+value = "#a5d6ff"
+add = "#3fb950"
+delete = "#f85149"
+dots = "#616e7f"
+
+[colors.light]
+background = "#f6f8fa"
+text = "#24292f"
+key = "#953800"
+value = "#0a3069"
+add = "#1a7f37"
+delete = "#cf222e"
+dots = "#c2cfde"
+
+# ===== SVG Layout =====
+[layout]
+width = 985
+height = 530
+font_size = 16
+ascii_x = 15
+content_x = 390
+line_height = 20
+target_width = 58
+corner_radius = 15
+
+# ===== Cache Settings =====
+[cache]
+comment_size = 7

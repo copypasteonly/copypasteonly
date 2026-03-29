@@ -8,7 +8,8 @@
       "Bash(python3 -c \"import tomllib; print\\(''tomllib ok''\\)\")",
       "Bash(python3 -c \"from dateutil import relativedelta; print\\(''dateutil ok''\\)\")",
       "Bash(pip install:*)",
-      "Bash(python3 generate_svg.py)"
+      "Bash(python3 generate_svg.py)",
+      "Bash(python3 -c \"import ast; ast.parse\\(open\\(''today.py''\\).read\\(\\)\\); print\\(''Syntax OK''\\)\")"
     ]
   }
 }

@@ -221,11 +221,13 @@ def loc_query(owner_affiliation, comment_size=0, force_cache=False, cursor=None,
     }'''
     variables = {'owner_affiliation': owner_affiliation, 'login': USER_NAME, 'cursor': cursor}
     request = simple_request(loc_query.__name__, query, variables)
-    if request.json()['data']['user']['repositories']['pageInfo']['hasNextPage']:   # If repository data has another page
-        edges += request.json()['data']['user']['repositories']['edges']            # Add on to the LoC count
+    new_edges = request.json()['data']['user']['repositories']['edges']
+    edges += new_edges
+    print(f'   Fetched {len(edges)} repos so far...', flush=True)
+    if request.json()['data']['user']['repositories']['pageInfo']['hasNextPage']:
         return loc_query(owner_affiliation, comment_size, force_cache, request.json()['data']['user']['repositories']['pageInfo']['endCursor'], edges)
     else:
-        return cache_builder(edges + request.json()['data']['user']['repositories']['edges'], comment_size, force_cache)
+        return cache_builder(edges, comment_size, force_cache)
 
 
 def cache_builder(edges, comment_size, force_cache, loc_add=0, loc_del=0):
@@ -253,17 +255,24 @@ def cache_builder(edges, comment_size, force_cache, loc_add=0, loc_del=0):
 
     cache_comment = data[:comment_size] # save the comment block
     data = data[comment_size:] # remove those lines
-    for index in range(len(edges)):
+    total_repos = len(edges)
+    repos_queried = 0
+    for index in range(total_repos):
         repo_hash, commit_count, *__ = data[index].split()
         if repo_hash == hashlib.sha256(edges[index]['node']['nameWithOwner'].encode('utf-8')).hexdigest():
             try:
                 if int(commit_count) != edges[index]['node']['defaultBranchRef']['target']['history']['totalCount']:
-                    # if commit count has changed, update loc for that repo
                     owner, repo_name = edges[index]['node']['nameWithOwner'].split('/')
+                    repos_queried += 1
+                    print(f'   [{index+1}/{total_repos}] Querying LOC for {owner}/{repo_name}...', flush=True)
                     loc = recursive_loc(owner, repo_name, data, cache_comment)
                     data[index] = repo_hash + ' ' + str(edges[index]['node']['defaultBranchRef']['target']['history']['totalCount']) + ' ' + str(loc[2]) + ' ' + str(loc[0]) + ' ' + str(loc[1]) + '\n'
             except TypeError: # If the repo is empty
                 data[index] = repo_hash + ' 0 0 0 0\n'
+    if repos_queried == 0:
+        print(f'   All {total_repos} repos cached, no LOC queries needed', flush=True)
+    else:
+        print(f'   Queried LOC for {repos_queried}/{total_repos} repos', flush=True)
     with open(filename, 'w') as f:
         f.writelines(cache_comment)
         f.writelines(data)

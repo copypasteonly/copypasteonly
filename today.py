@@ -8,6 +8,7 @@ import os
 from lxml import etree
 import time
 import hashlib
+import random
 
 # Fine-grained personal access token with All Repositories access:
 # Account permissions: read:Followers, read:Starring, read:Watching
@@ -48,11 +49,35 @@ def format_plural(unit):
     return 's' if unit != 1 else ''
 
 
+RETRYABLE_STATUS = {500, 502, 503, 504}
+MAX_RETRIES = 4
+
+
+def post_graphql(query, variables):
+    """
+    POST to GitHub's GraphQL endpoint with exponential backoff on transient 5xx.
+    Retries on 500/502/503/504; other statuses (including 403 anti-abuse) pass
+    through unchanged for the caller to handle.
+    """
+    for attempt in range(MAX_RETRIES + 1):
+        response = requests.post(
+            'https://api.github.com/graphql',
+            json={'query': query, 'variables': variables},
+            headers=HEADERS,
+        )
+        if response.status_code not in RETRYABLE_STATUS or attempt == MAX_RETRIES:
+            return response
+        delay = 2 ** attempt + random.uniform(0, 1)
+        print(f'   GitHub returned {response.status_code}; retrying in {delay:.1f}s (attempt {attempt + 1}/{MAX_RETRIES})', flush=True)
+        time.sleep(delay)
+    return response
+
+
 def simple_request(func_name, query, variables):
     """
     Returns a request, or raises an Exception if the response does not succeed.
     """
-    request = requests.post('https://api.github.com/graphql', json={'query': query, 'variables':variables}, headers=HEADERS)
+    request = post_graphql(query, variables)
     if request.status_code == 200:
         return request
     raise Exception(func_name, ' has failed with a', request.status_code, request.text, QUERY_COUNT)
@@ -158,7 +183,7 @@ def recursive_loc(owner, repo_name, data, cache_comment, addition_total=0, delet
     while True:
         query_count('recursive_loc')
         variables = {'repo_name': repo_name, 'owner': owner, 'cursor': cursor}
-        request = requests.post('https://api.github.com/graphql', json={'query': query, 'variables': variables}, headers=HEADERS)
+        request = post_graphql(query, variables)
         if request.status_code != 200:
             force_close_file(data, cache_comment)
             if request.status_code == 403:
